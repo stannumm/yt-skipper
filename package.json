@@ -1,0 +1,16 @@
+{
+  "name": "youtube-transcript-extension",
+  "version": "1.0.0",
+  "description": "Chrome extension for YouTube transcripts",
+  "scripts": {
+    "build": "webpack",
+    "watch": "webpack --watch"
+  },
+  "dependencies": {
+    "youtube-transcript": "^1.0.6"
+  },
+  "devDependencies": {
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  }
+} 
