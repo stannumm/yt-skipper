@@ -17,6 +17,21 @@ async function fetchTranscript(videoId) {
   }
 }
 
+// Store current index and times array globally
+let currentIndex = 0;
+let times = [];
+
+// Function to seek to next timestamp
+function seekToNextTimestamp() {
+  if (currentIndex < times.length - 1) {
+    currentIndex++;
+    const video = document.querySelector('video');
+    if (video) {
+      video.currentTime = times[currentIndex];
+    }
+  }
+}
+
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
@@ -28,7 +43,17 @@ chrome.runtime.onMessage.addListener(
         console.log('Fetching transcript for video:', videoId);
         fetchTranscript(videoId).then(transcript => {
           if (transcript) {
-            console.log('Transcript:', transcript);
+            times = transcript
+            .filter(t => t.text !== '' && !t.text.startsWith('[') && !t.text.endsWith(']'))
+            .map(t => Math.floor(t.offset));
+            currentIndex = 0; // Reset index when new transcript is loaded
+            console.log('transcript:', transcript);
+            console.log('times:', times);
+            // Send times array back to popup
+            chrome.runtime.sendMessage({
+              action: "transcriptLoaded",
+              times: times
+            });
           } else {
             console.log('No transcript available');
           }
@@ -36,6 +61,8 @@ chrome.runtime.onMessage.addListener(
       } else {
         console.log('No video ID found in URL');
       }
+    } else if (request.action === "nextTimestamp") {
+      seekToNextTimestamp();
     }
   }
 ); 

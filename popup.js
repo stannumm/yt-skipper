@@ -1,31 +1,26 @@
-// Alert button click handler
-document.getElementById('alertButton').addEventListener('click', function() {
-  // Query the active tab
-  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    const currentTab = tabs[0];
-    
-    // Check if we're on YouTube
-    if (currentTab.url.includes('youtube.com')) {
-      // Send message to content script
-      chrome.tabs.sendMessage(currentTab.id, {action: "showAlert"});
-    } else {
-      alert('This extension only works on YouTube!');
-    }
-  });
-});
+document.addEventListener('DOMContentLoaded', function() {
+  const getTranscriptButton = document.getElementById('getTranscript');
+  const nextTimestampButton = document.getElementById('nextTimestamp');
 
-// Transcript button click handler
-document.getElementById('transcriptButton').addEventListener('click', function() {
-  // Query the active tab
-  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    const currentTab = tabs[0];
-    
-    // Check if we're on YouTube
-    if (currentTab.url.includes('youtube.com')) {
-      // Send message to content script
-      chrome.tabs.sendMessage(currentTab.id, {action: "getTranscript"});
-    } else {
-      alert('This extension only works on YouTube!');
+  // Initially disable the next button
+  nextTimestampButton.disabled = true;
+
+  getTranscriptButton.addEventListener('click', function() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, {action: "getTranscript"});
+    });
+  });
+
+  nextTimestampButton.addEventListener('click', function() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, {action: "nextTimestamp"});
+    });
+  });
+
+  // Listen for transcript loaded message
+  chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+    if (request.action === "transcriptLoaded") {
+      nextTimestampButton.disabled = false;
     }
   });
 }); 
