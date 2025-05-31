@@ -20,9 +20,10 @@ async function fetchTranscript(videoId) {
 // Store current index and times array globally
 let currentIndex = 0;
 let times = [];
+let batchTimes = [];
 
 // Function to find the closest timestamp index
-function findClosestTimestampIndex(currentTime) {
+function findClosestTimestampIndex(times, currentTime) {
   if (times.length === 0) return 0;
   
   // Find the first timestamp that's greater than current time
@@ -35,6 +36,15 @@ function findClosestTimestampIndex(currentTime) {
   return Math.max(0, nextIndex - 1);
 }
 
+// Function to send timestamp info to popup
+function sendTimestampInfo() {
+  chrome.runtime.sendMessage({
+    action: "timestampInfo",
+    currentIndex: currentIndex,
+    totalCount: times.length
+  });
+}
+
 // Function to seek to next timestamp
 function seekToNextTimestamp() {
   if (currentIndex < times.length - 1) {
@@ -42,16 +52,46 @@ function seekToNextTimestamp() {
     const video = document.querySelector('video');
     if (video) {
       video.currentTime = times[currentIndex];
+      sendTimestampInfo();
     }
   }
 }
+
+function seekToPreviousTimestamp() {
+  if (currentIndex > 0) {
+    currentIndex--;
+    const video = document.querySelector('video');
+    if (video) {
+      video.currentTime = times[currentIndex];
+      sendTimestampInfo();
+    }
+  }
+}
+
+function seekToBatchTimestamp() {
+  const video = document.querySelector('video');
+  if (video) {
+  let newIndex = findClosestTimestampIndex(batchTimes, video.currentTime);
+  if (newIndex < batchTimes.length - 1) {
+      newIndex++;
+      video.currentTime = batchTimes[newIndex];
+      currentIndex = times.findIndex(time => time === batchTimes[newIndex]);
+      sendTimestampInfo();
+    }
+  }
+}
+
 
 // Function to setup video time tracking
 function setupVideoTimeTracking() {
   const video = document.querySelector('video');
   if (video) {
     video.addEventListener('timeupdate', () => {
-      currentIndex = findClosestTimestampIndex(video.currentTime);
+      const newIndex = findClosestTimestampIndex(times, video.currentTime);
+      if (newIndex !== currentIndex) {
+        currentIndex = newIndex;
+        sendTimestampInfo();
+      }
     });
   }
 }
@@ -62,11 +102,17 @@ function processAndStoreTranscript(transcript, videoId) {
     times = transcript
       .filter(t => t.text !== '' && !t.text.startsWith('[') && !t.text.endsWith(']'))
       .map(t => Math.floor(t.offset));
+
+    batchTimes = times.filter((time, index, arr) => {
+      if (index === 0) return false; // skip first element
+      return time - arr[index - 1] > 10;
+    });
     
     // Store in Chrome storage
     chrome.storage.local.set({
       [videoId]: {
         times: times,
+        batchTimes: batchTimes,
         timestamp: Date.now()
       }
     });
@@ -74,11 +120,12 @@ function processAndStoreTranscript(transcript, videoId) {
     // Setup video time tracking
     setupVideoTimeTracking();
     
-    // Send times array back to popup
+    // Send times array and initial timestamp info back to popup
     chrome.runtime.sendMessage({
       action: "transcriptLoaded",
       times: times
     });
+    sendTimestampInfo();
   }
 }
 
@@ -94,6 +141,7 @@ chrome.runtime.onMessage.addListener(
         chrome.storage.local.get([videoId], function(result) {
           if (result[videoId]) {
             // Use cached data
+            console.log('Using cached data');
             times = result[videoId].times;
             setupVideoTimeTracking();
             chrome.runtime.sendMessage({
@@ -113,6 +161,10 @@ chrome.runtime.onMessage.addListener(
       }
     } else if (request.action === "nextTimestamp") {
       seekToNextTimestamp();
+    } else if (request.action === "previousTimestamp") {
+      seekToPreviousTimestamp();
+    } else if (request.action === "batchTimestamp") {
+      seekToBatchTimestamp();
     }
   }
 ); 

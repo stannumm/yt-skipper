@@ -7,8 +7,12 @@
       width: 300px;
       padding: 10px;
     }
+    .button-container {
+      display: flex;
+      gap: 10px;
+    }
     button {
-      width: 100%;
+      flex: 1;
       padding: 8px;
       margin: 5px 0;
       background-color: #ff0000;
@@ -24,10 +28,21 @@
       background-color: #cccccc;
       cursor: not-allowed;
     }
+    #timestampCounter {
+      text-align: center;
+      font-size: 16px;
+      margin: 10px 0;
+      color: #333;
+    }
   </style>
 </head>
 <body>
-  <button id="nextTimestamp">Next Timestamp</button>
+  <div id="timestampCounter">0 / 0</div>
+  <div class="button-container">
+    <button id="nextTimestamp">Next Timestamp</button>
+    <button id="previousTimestamp">Previous Timestamp</button>
+    <button id="batchTimestamp">Batch Timestamp</button>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html> 
