@@ -5,7 +5,8 @@
   "description": "Shows an alert when clicked on YouTube and fetches transcripts",
   "permissions": [
     "activeTab",
-    "tabs"
+    "tabs",
+    "storage"
   ],
   "host_permissions": [
     "*://*.youtube.com/*"

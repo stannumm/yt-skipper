@@ -20,10 +20,13 @@
     button:hover {
       background-color: #cc0000;
     }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
-  <button id="getTranscript">Get Transcript</button>
   <button id="nextTimestamp">Next Timestamp</button>
   <script src="popup.js"></script>
 </body>

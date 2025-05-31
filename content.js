@@ -21,6 +21,20 @@ async function fetchTranscript(videoId) {
 let currentIndex = 0;
 let times = [];
 
+// Function to find the closest timestamp index
+function findClosestTimestampIndex(currentTime) {
+  if (times.length === 0) return 0;
+  
+  // Find the first timestamp that's greater than current time
+  const nextIndex = times.findIndex(time => time > currentTime);
+  
+  // If no future timestamp found, return the last index
+  if (nextIndex === -1) return times.length - 1;
+  
+  // Return the previous index (or 0 if it's the first timestamp)
+  return Math.max(0, nextIndex - 1);
+}
+
 // Function to seek to next timestamp
 function seekToNextTimestamp() {
   if (currentIndex < times.length - 1) {
@@ -32,6 +46,42 @@ function seekToNextTimestamp() {
   }
 }
 
+// Function to setup video time tracking
+function setupVideoTimeTracking() {
+  const video = document.querySelector('video');
+  if (video) {
+    video.addEventListener('timeupdate', () => {
+      currentIndex = findClosestTimestampIndex(video.currentTime);
+    });
+  }
+}
+
+// Function to process and store transcript
+function processAndStoreTranscript(transcript, videoId) {
+  if (transcript) {
+    times = transcript
+      .filter(t => t.text !== '' && !t.text.startsWith('[') && !t.text.endsWith(']'))
+      .map(t => Math.floor(t.offset));
+    
+    // Store in Chrome storage
+    chrome.storage.local.set({
+      [videoId]: {
+        times: times,
+        timestamp: Date.now()
+      }
+    });
+
+    // Setup video time tracking
+    setupVideoTimeTracking();
+    
+    // Send times array back to popup
+    chrome.runtime.sendMessage({
+      action: "transcriptLoaded",
+      times: times
+    });
+  }
+}
+
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
@@ -40,22 +90,22 @@ chrome.runtime.onMessage.addListener(
     } else if (request.action === "getTranscript") {
       const videoId = getYoutubeVideoId(window.location.href);
       if (videoId) {
-        console.log('Fetching transcript for video:', videoId);
-        fetchTranscript(videoId).then(transcript => {
-          if (transcript) {
-            times = transcript
-            .filter(t => t.text !== '' && !t.text.startsWith('[') && !t.text.endsWith(']'))
-            .map(t => Math.floor(t.offset));
-            currentIndex = 0; // Reset index when new transcript is loaded
-            console.log('transcript:', transcript);
-            console.log('times:', times);
-            // Send times array back to popup
+        // First check if we have cached data
+        chrome.storage.local.get([videoId], function(result) {
+          if (result[videoId]) {
+            // Use cached data
+            times = result[videoId].times;
+            setupVideoTimeTracking();
             chrome.runtime.sendMessage({
               action: "transcriptLoaded",
               times: times
             });
           } else {
-            console.log('No transcript available');
+            // Fetch new transcript if not cached
+            console.log('Fetching transcript for video:', videoId);
+            fetchTranscript(videoId).then(transcript => {
+              processAndStoreTranscript(transcript, videoId);
+            });
           }
         });
       } else {
